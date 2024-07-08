@@ -1,0 +1,5 @@
+# Terraform providers
+*.terraform/
+*.tfstate
+*.tfstate.backup
+*.lock.info
