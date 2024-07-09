@@ -1,34 +1,18 @@
-# Configure the AWS Provider
-provider "aws" {
-  region = "us-east-1"
-}
-
 # Terraform Resource Block - To Build EC2 instance in Public Subnet
 resource "aws_instance" "web_server" {
-  ami           = "ami-06c68f701d8090592"
-  instance_type = "t2.micro"
-  key_name      = "IsmaelKhalil_UbuntuKey"
-  user_data     = <<-EOF
-    #!/bin/bash
-    sudo yum update -y
-    sudo wget -O /etc/yum.repos.d/jenkins.repo \
-    https://pkg.jenkins.io/redhat-stable/jenkins.repo
-    sudo rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
-    sudo yum upgrade
-    sudo dnf install java-17-amazon-corretto -y
-    sudo yum install jenkins -y
-    sudo systemctl enable jenkins
-    sudo systemctl start jenkins
-  EOF
+  ami           = var.ik_ami
+  instance_type = var.ik_instance_type
+  key_name      = var.ik_key_name
+  user_data     = file("jenkins_user_data.sh")
   tags = {
-    Name = "EC2 Server for Jenkins"
+    Name = var.ik_instance_tag_name
   }
   vpc_security_group_ids = [aws_security_group.sg_jenkins.id]
 }
 
 resource "aws_security_group" "sg_jenkins" {
-  name        = "Security Group for Jenkins"
-  vpc_id      = "vpc-0061fa15857aad1e0"
+  name        = var.ik_sg_name
+  vpc_id      = var.ik_vpc_id
   description = "Web Traffic"
 
   ingress {
@@ -36,7 +20,7 @@ resource "aws_security_group" "sg_jenkins" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.ik_cidr_block]
   }
 
   ingress {
@@ -44,7 +28,7 @@ resource "aws_security_group" "sg_jenkins" {
     from_port   = 8080
     to_port     = 8080
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.ik_cidr_block]
   }
 
   egress {
@@ -52,14 +36,23 @@ resource "aws_security_group" "sg_jenkins" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.ik_cidr_block]
   }
 }
 
 resource "aws_s3_bucket" "s3_jenkins" {
-  bucket = "jenkins-s3-bucket-ikhalil"
+  bucket = var.ik_bucket
 
   tags = {
-    Name = "Jenkins Bucket"
+    Name = var.ik_bucket_tag_name
   }
+}
+
+resource "aws_s3_bucket_public_access_block" "s3_jenkins_block" {
+  bucket = aws_s3_bucket.s3_jenkins.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
